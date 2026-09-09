@@ -1,0 +1,61 @@
+version: "3.9"
+
+# Orquesta los tres componentes del sistema:
+#   db       -> PostgreSQL 16 + PostGIS (persistente vía volumen nombrado)
+#   backend  -> FastAPI (aplica migraciones de Alembic al arrancar)
+#   frontend -> React/Vite compilado y servido con Nginx
+#
+# Uso:
+#   cp backend/.env.example backend/.env   # ajustar valores si hace falta
+#   docker compose up --build
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: crm_zmg_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-crm_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crm_password}
+      POSTGRES_DB: ${POSTGRES_DB:-crm_prospectacion}
+    ports:
+      - "5432:5432"
+    volumes:
+      - crm_postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crm_user} -d ${POSTGRES_DB:-crm_prospectacion}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: crm_zmg_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      POSTGRES_SERVER: db
+      POSTGRES_PORT: 5432
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8000/api/v1
+    container_name: crm_zmg_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  crm_postgres_data:

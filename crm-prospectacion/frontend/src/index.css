@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  background-color: #eff6ff;
+  color: #1e3a8a;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: "Sora", system-ui, sans-serif;
+}
+
+/* Foco de teclado visible en toda la app, sin depender del estilo por
+   defecto (a veces inconsistente) del navegador. */
+:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* Scrollbar discreto para la barra lateral y paneles largos. */
+.scroll-slim::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  background-color: rgba(30, 58, 138, 0.25);
+  border-radius: 999px;
+}
+.scroll-slim::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+}
