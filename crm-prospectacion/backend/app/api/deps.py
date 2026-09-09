@@ -11,8 +11,11 @@ from app.core.security import TOKEN_TYPE_ACCESS, decode_token
 from app.db.session import get_db
 from app.models.user import RoleEnum, User
 
-# tokenUrl solo se usa para generar la documentación interactiva de Swagger.
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
 CREDENTIALS_EXCEPTION = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -42,6 +45,27 @@ async def get_current_user(
     if user is None or not user.is_active:
         raise CREDENTIALS_EXCEPTION
 
+    return user
+
+
+async def get_current_user_optional(
+    token: str | None = Depends(oauth2_scheme_optional),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+
+    if token is None:
+        return None
+    try:
+        payload = decode_token(token)
+        if payload.token_type != TOKEN_TYPE_ACCESS:
+            return None
+        user_id = uuid.UUID(payload.sub)
+    except (JWTError, ValueError):
+        return None
+
+    user = await db.get(User, user_id)
+    if user is None or not user.is_active:
+        return None
     return user
 
 
