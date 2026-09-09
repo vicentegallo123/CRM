@@ -374,6 +374,31 @@ export function useMapRoutesVM() {
     }
   }, [loadBusinesses]);
 
+  // Mueve el punto de partida arrastrando el pin en el mapa, en vez de
+  // depender del GPS del dispositivo -- útil para planear prospección en
+  // una zona donde todavía no estás parado físicamente.
+  const moveReferencePoint = useCallback(async (lat, lng) => {
+    setIsUpdatingReferencePoint(true);
+    setErrorMessage(null);
+    try {
+      const updated = await updateReferencePoint({
+        label: "Punto ajustado manualmente en el mapa",
+        lat,
+        lng,
+      });
+      setReferencePoint(updated);
+      await loadBusinesses();
+      return true;
+    } catch (err) {
+      setErrorMessage(
+        err?.response?.data?.detail || "No se pudo mover el punto de partida."
+      );
+      return false;
+    } finally {
+      setIsUpdatingReferencePoint(false);
+    }
+  }, [loadBusinesses]);
+
   const selectedBusinesses = useMemo(
     () => businesses.filter((b) => selectedIds.includes(b.id)),
     [businesses, selectedIds]
@@ -480,6 +505,7 @@ export function useMapRoutesVM() {
     removeBusiness,
     createManualBusiness,
     useCurrentLocationAsReferencePoint,
+    moveReferencePoint,
     saveCurrentRoute,
     loadSavedRouteSelection,
     removeSavedRoute,

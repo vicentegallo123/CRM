@@ -56,6 +56,12 @@ export default function Sidebar({
   onLoadSavedRoute,
   onDeleteSavedRoute,
   isCollapsed,
+  zones,
+  isDrawingZone,
+  onStartDrawingZone,
+  onUpdateZoneColor,
+  onRenameZone,
+  onDeleteZone,
 }) {
   const [scraperZone, setScraperZone] = useState(ZONES[0]);
   const [scraperCategory, setScraperCategory] = useState(CATEGORIES[0]);
@@ -257,6 +263,8 @@ export default function Sidebar({
         {referencePoint && (
           <p className="mb-1 text-xs text-gray-500">
             📍 Punto de partida: <span className="font-medium">{referencePoint.label}</span>
+            <br />
+            <span className="text-gray-400">Tip: arrastra el pin morado en el mapa para moverlo</span>
           </p>
         )}
         <button
@@ -340,6 +348,70 @@ export default function Sidebar({
         >
           {isSavingRoute ? "Guardando…" : "💾 Guardar esta selección como ruta"}
         </button>
+      </section>
+
+      {/* Zonas dibujadas a mano sobre el mapa */}
+      <section className="rounded-xl border border-brand-100 bg-white p-4 shadow-sm">
+        <h2 className="mb-2 font-display text-sm font-semibold text-brand-900">🖊️ Zonas en el mapa</h2>
+
+        {!isDrawingZone ? (
+          <button
+            type="button"
+            onClick={onStartDrawingZone}
+            className="mb-2 w-full rounded border border-brand-300 px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50"
+          >
+            + Dibujar zona nueva
+          </button>
+        ) : (
+          <p className="mb-2 rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">
+            Marca los vértices haciendo clic en el mapa. Usa los controles que aparecen arriba del mapa para finalizar o cancelar.
+          </p>
+        )}
+
+        {zones.length === 0 ? (
+          <p className="text-xs text-gray-400">Todavía no has dibujado ninguna zona.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {zones.map((zone) => (
+              <li
+                key={zone.id}
+                className="flex items-center gap-2 rounded border border-gray-100 px-2 py-1.5"
+              >
+                <input
+                  type="color"
+                  value={zone.color}
+                  onChange={(e) => onUpdateZoneColor(zone.id, e.target.value)}
+                  title="Cambiar color"
+                  className="h-6 w-6 cursor-pointer rounded border border-gray-200"
+                />
+                <span className="flex-1 truncate text-xs font-medium text-gray-700">
+                  {zone.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const name = window.prompt("Nuevo nombre para la zona", zone.name);
+                    if (name) onRenameZone(zone.id, name);
+                  }}
+                  title="Renombrar"
+                  className="text-xs text-gray-400 hover:text-brand-600"
+                >
+                  ✏️
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm(`¿Eliminar la zona "${zone.name}"?`)) onDeleteZone(zone.id);
+                  }}
+                  title="Eliminar"
+                  className="text-xs text-gray-400 hover:text-red-600"
+                >
+                  🗑️
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       {/* Rutas guardadas */}
@@ -517,6 +589,7 @@ export default function Sidebar({
           </ul>
         )}
       </section>
+
       </aside>
     </>
   );

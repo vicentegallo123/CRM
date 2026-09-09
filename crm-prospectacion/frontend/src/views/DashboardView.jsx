@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuthVM } from "../viewmodels/useAuthVM.js";
 import { useMapRoutesVM } from "../viewmodels/useMapRoutesVM.js";
 import { useDashboardVM } from "../viewmodels/useDashboardVM.js";
+import { useZones } from "../hooks/useZones.js";
 import LoginView from "./LoginView.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import MapView from "../components/MapView.jsx";
@@ -24,21 +25,17 @@ const TABS = [
   { key: "dashboard", label: "📊 Dashboard" },
 ];
 
-// Coincide con el valor por defecto de settings.REFERENCE_POINT_LABEL en
-// el backend: mientras el punto de referencia siga siendo exactamente
-// este texto, significa que el usuario todavía no lo ha ajustado con su
-// ubicación GPS real, así que mostramos un aviso sugiriéndolo.
+
 const DEFAULT_REFERENCE_LABEL = "Av Unión 126, Col. Americana, Guadalajara, Jal.";
 
 function Dashboard({ authVM }) {
   const vm = useMapRoutesVM();
   const dashboardVM = useDashboardVM();
+  const zonesVM = useZones();
   const [activeTab, setActiveTab] = useState("mapa");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // Colapso de la barra lateral en escritorio (pantallas lg+). En móvil se
-  // usa isSidebarOpen (panel deslizable); en escritorio, isSidebarCollapsed
-  // simplemente la oculta para dejar más espacio al mapa/tablero.
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [detailBusiness, setDetailBusiness] = useState(null);
   const [locationBannerDismissed, setLocationBannerDismissed] = useState(false);
@@ -49,15 +46,18 @@ function Dashboard({ authVM }) {
     return updated;
   };
 
+  const handleFinishDrawingZone = () => {
+    const name = window.prompt("¿Cómo quieres llamar a esta zona?");
+    if (name && name.trim()) zonesVM.finishDrawing(name);
+  };
+
   const handleCreateBusiness = async (payload) => {
     const success = await vm.createManualBusiness(payload);
     if (success) dashboardVM.reload(); // Recargar el dashboard si se crea con éxito
     return success;
   };
 
-  // Al eliminar una tarjeta (desde el Kanban o la barra lateral), además
-  // de quitarla de la lista, refrescamos las métricas del dashboard para
-  // que dejen de contarla de inmediato.
+
   const handleDeleteBusiness = async (businessId) => {
     const success = await vm.removeBusiness(businessId);
     if (success) dashboardVM.reload();
@@ -75,9 +75,7 @@ function Dashboard({ authVM }) {
     vm.referencePoint &&
     vm.referencePoint.label === DEFAULT_REFERENCE_LABEL;
 
-  // Al elegir una pestaña en móvil, cierra el panel deslizable
-  // automáticamente -- si el usuario ya decidió a dónde ir, no tiene
-  // sentido que el menú se quede estorbando encima.
+ 
   const handleSelectTab = (tabKey) => {
     setActiveTab(tabKey);
     setIsSidebarOpen(false);
@@ -124,6 +122,12 @@ function Dashboard({ authVM }) {
         onLoadSavedRoute={vm.loadSavedRouteSelection}
         onDeleteSavedRoute={vm.removeSavedRoute}
         isCollapsed={isSidebarCollapsed}
+        zones={zonesVM.zones}
+        isDrawingZone={zonesVM.isDrawing}
+        onStartDrawingZone={zonesVM.startDrawing}
+        onUpdateZoneColor={zonesVM.updateZoneColor}
+        onRenameZone={zonesVM.renameZone}
+        onDeleteZone={zonesVM.deleteZone}
       />
       <main className="flex h-full flex-1 flex-col overflow-hidden bg-brand-50">
         {/* Navegación por pestañas, menú móvil y botón de nuevo prospecto */}
@@ -210,10 +214,18 @@ function Dashboard({ authVM }) {
               onToggleSelected={vm.toggleSelected}
               onToggleVisited={vm.toggleVisited}
               referencePoint={vm.referencePoint}
+              onMoveReferencePoint={vm.moveReferencePoint}
               onOpenDetail={setDetailBusiness}
               routeGeometry={vm.displayedRouteGeometry}
               realDistanceKm={vm.displayedRealDistanceKm}
               realDurationMinutes={vm.displayedRealDurationMinutes}
+              zones={zonesVM.zones}
+              isDrawingZone={zonesVM.isDrawing}
+              drawingPoints={zonesVM.drawingPoints}
+              onDrawPoint={zonesVM.addPoint}
+              onUndoDrawPoint={zonesVM.undoLastPoint}
+              onFinishDrawingZone={handleFinishDrawingZone}
+              onCancelDrawingZone={zonesVM.cancelDrawing}
             />
           )}
 
