@@ -1,0 +1,60 @@
+databases:
+  - name: crm-zmg-db
+    plan: free
+    databaseName: crm_prospectacion
+    user: crm_user
+
+services:
+  - type: web
+    name: crm-zmg-backend
+    runtime: docker
+    repo: https://github.com/vicentegallo123/CRM
+    rootDir: crm-prospectacion/backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "480"
+      - key: REFRESH_TOKEN_EXPIRE_MINUTES
+        value: "10080"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "60"
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: crm-zmg-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: crm-zmg-db
+          property: password
+      - key: POSTGRES_SERVER
+        fromDatabase:
+          name: crm-zmg-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: crm-zmg-db
+          property: port
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: crm-zmg-db
+          property: database
+      - key: BACKEND_CORS_ORIGINS
+        value: '["https://crm-zmg-frontend.onrender.com"]'
+
+  - type: web
+    name: crm-zmg-frontend
+    runtime: static
+    repo: https://github.com/vicentegallo123/CRM
+    rootDir: crm-prospectacion/frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://crm-zmg-backend.onrender.com/api/v1
