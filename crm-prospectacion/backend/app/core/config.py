@@ -2,7 +2,11 @@
 from functools import lru_cache
 from typing import List
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_SECRET_KEY = "CHANGE_THIS_SECRET_KEY_IN_PRODUCTION_1234567890"
+DEFAULT_POSTGRES_PASSWORD = "crm_password"
 
 
 class Settings(BaseSettings):
@@ -10,6 +14,11 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "CRM Prospectación ZMG"
     API_V1_STR: str = "/api/v1"
+
+    # "development" (default) o "production". En producción se validan
+    # abajo los valores por defecto inseguros (SECRET_KEY, password de DB)
+    # para evitar desplegar con credenciales conocidas públicamente.
+    ENVIRONMENT: str = "development"
 
     # Base de datos (PostgreSQL + PostGIS opcional). Driver: psycopg (v3),
     # no asyncpg -- ver nota en requirements.txt sobre por que.
@@ -33,7 +42,7 @@ class Settings(BaseSettings):
     ]
 
     # Seguridad / Autenticación
-    SECRET_KEY: str = "CHANGE_THIS_SECRET_KEY_IN_PRODUCTION_1234567890"
+    SECRET_KEY: str = DEFAULT_SECRET_KEY
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 8  # 8 horas
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 días
@@ -99,6 +108,24 @@ class Settings(BaseSettings):
         "cooperativa",
         "otro",
     ]
+
+    @model_validator(mode="after")
+    def _reject_insecure_defaults_in_production(self) -> "Settings":
+        if self.ENVIRONMENT.lower() != "production":
+            return self
+
+        insecure = []
+        if self.SECRET_KEY == DEFAULT_SECRET_KEY:
+            insecure.append("SECRET_KEY sigue siendo el valor de ejemplo")
+        if self.POSTGRES_PASSWORD == DEFAULT_POSTGRES_PASSWORD:
+            insecure.append("POSTGRES_PASSWORD sigue siendo el valor de ejemplo")
+        if insecure:
+            raise ValueError(
+                "Configuración insegura para ENVIRONMENT=production: "
+                + "; ".join(insecure)
+                + ". Define valores propios en tu .env antes de desplegar."
+            )
+        return self
 
 
 @lru_cache

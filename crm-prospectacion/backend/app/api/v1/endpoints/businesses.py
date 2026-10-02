@@ -119,6 +119,16 @@ async def list_businesses(
     )
 
 
+def _assert_can_access_business(business: Business, current_user: User) -> None:
+    """Misma regla de visibilidad multi-usuario que list_businesses: un
+    vendedor solo puede ver/editar lo suyo o lo sin asignar; un admin
+    puede todo."""
+    if current_user.role.value == "admin":
+        return
+    if business.assigned_to_id not in (None, current_user.id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Negocio no encontrado")
+
+
 async def _resolve_assignee_names(businesses, db: AsyncSession) -> dict:
     """Resuelve en un solo query los nombres de los vendedores asignados a
     la lista de negocios dada, para no hacer N consultas individuales."""
@@ -131,11 +141,14 @@ async def _resolve_assignee_names(businesses, db: AsyncSession) -> dict:
 
 @router.get("/{business_id}", response_model=BusinessResponse)
 async def get_business(
-    business_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+    business_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> BusinessResponse:
     business = await db.get(Business, business_id)
     if business is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Negocio no encontrado")
+    _assert_can_access_business(business, current_user)
     reference = await get_reference_point(db)
     assignee_names = await _resolve_assignee_names([business], db)
     return _to_response_with_distance(business, reference, assignee_names)
@@ -165,6 +178,7 @@ async def update_business(
     business = await db.get(Business, business_id)
     if business is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Negocio no encontrado")
+    _assert_can_access_business(business, current_user)
 
     update_data = payload.model_dump(exclude_unset=True)
 
